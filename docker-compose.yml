@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=run.py
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/orders_db
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orders_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  tests:
+    build: .
+    depends_on:
+      - db_test
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=testing
+      - FLASK_APP=run.py
+      - DATABASE_URL=postgresql://postgres:postgres@db_test:5432/orders_test_db
+    command: ["sh", "-c", "pytest --cov=app tests/"]
+
+  db_test:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orders_test_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  postgres_test_data:

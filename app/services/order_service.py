@@ -1,7 +1,7 @@
 from flask import jsonify
-from .model import Order, Status
-from .extensions import db
-from .validation import validate_order
+from ..model import Order, Status
+from ..extensions import db
+from ..validation import validate_order
 import pandas as pd
 
 

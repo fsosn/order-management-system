@@ -34,3 +34,9 @@ def update_order(id):
 def delete_order(id):
     response, status_code = service.delete_order(id)
     return response, status_code
+
+
+@orders_bp.route("/api/orders/statistics", methods=["GET"])
+def get_statistics():
+    response, status_code = service.get_statistics()
+    return response, status_code

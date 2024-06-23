@@ -1,13 +1,13 @@
 from flask import jsonify
-from .model import Order, Status
-from .extensions import db
-from .validation import validate_order
+from ..model import Order, Status
+from ..extensions import db
+from .utils.validation import validate_request_data
 import pandas as pd
 
 
 def create_order(data):
-    errors = validate_order(data)
-    if errors:
+    errors = validate_request_data(data)
+    if errors["errors"]:
         return jsonify(errors), 400
 
     order = Order(
@@ -58,8 +58,8 @@ def get_orders():
 
 
 def update_order(id, data):
-    errors = validate_order(data)
-    if errors:
+    errors = validate_request_data(data)
+    if errors["errors"]:
         return jsonify(errors), 400
 
     order = Order.query.get_or_404(id)
@@ -69,6 +69,53 @@ def update_order(id, data):
     db.session.commit()
 
     return jsonify({"message": "Order updated successfully."}), 200
+
+
+def bulk_update_statuses(id_list, status):
+    if not isinstance(id_list, list) or not all(isinstance(id, int) for id in id_list):
+        return jsonify({"error": "Property 'id_list' must be a list of integers."}), 400
+
+    try:
+        status = Status(status)
+    except ValueError:
+        return (
+            jsonify(
+                {
+                    "error": f"Invalid status value. Choose one of: {', '.join([s.value for s in Status])}"
+                }
+            ),
+            400,
+        )
+
+    updated_orders = []
+    not_found_orders = []
+    no_change_orders = []
+
+    for id in id_list:
+        order = Order.query.get(id)
+        try:
+            if order.status.value != status.value:
+                order.status = status
+                updated_orders.append(id)
+            else:
+                no_change_orders.append(id)
+        except Exception:
+            not_found_orders.append(id)
+            continue
+
+    db.session.commit()
+
+    return (
+        jsonify(
+            {
+                "message": "Completed bulk update of statuses.",
+                "updated": updated_orders,
+                "no_change": no_change_orders,
+                "not_found": not_found_orders,
+            }
+        ),
+        200,
+    )
 
 
 def delete_order(id):

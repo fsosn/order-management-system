@@ -3,3 +3,6 @@ Flask-SQLAlchemy
 Flask-Migrate
 psycopg2-binary
 pandas
+openpyxl
+h5py
+pytz

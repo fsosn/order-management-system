@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from ..extensions import db
 from flask import jsonify
 from .utils.validation import validate_order_data
+import h5py
 
 
 def generate_xlsx_report():
@@ -33,7 +34,7 @@ def generate_xlsx_report():
         cell.font = Font(bold=True)
         cell.border = thin_border
 
-    orders = Order.query.all()
+    orders = Order.query.order_by(Order.status, Order.id).all()
     for order in orders:
         row = [
             order.id,
@@ -72,7 +73,7 @@ def generate_xlsx_report():
 
 
 def export_to_xml():
-    orders = Order.query.all()
+    orders = Order.query.order_by(Order.id).all()
 
     root = ET.Element("Orders")
 
@@ -154,4 +155,84 @@ def import_from_xml(xml):
             return jsonify({"error": f"Invalid data: {e}"}), 400
 
     db.session.commit()
+
     return jsonify({"message": "Orders were imported successfully from XML."}), 200
+
+
+def export_to_hdf5():
+    orders = Order.query.all()
+
+    try:
+        hdf5 = BytesIO()
+
+        with h5py.File(hdf5, "w") as file:
+            orders_group = file.create_group("orders")
+
+            for order in orders:
+                order_group = orders_group.create_group(f"order_{order.id}")
+                order_group.create_dataset("id", data=order.id)
+                order_group.create_dataset("name", data=order.name)
+                order_group.create_dataset("description", data=order.description)
+                order_group.create_dataset(
+                    "creation_date",
+                    data=order.creation_date.strftime("%Y-%m-%d %H:%M:%S"),
+                )
+                order_group.create_dataset("status", data=order.status.value)
+
+        hdf5.seek(0)
+
+        return hdf5
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def import_from_hdf5(hdf5):
+    try:
+        with h5py.File(hdf5, "r") as file:
+            if "orders" not in file:
+                return jsonify({"error": "Missing 'orders' group."}), 400
+
+            orders_group = file["orders"]
+            orders = []
+
+            for key in orders_group.keys():
+                order_group = orders_group[key]
+
+                data = {
+                    "id": key.split("_")[1],
+                    "name": order_group["name"][()].decode("utf-8"),
+                    "description": order_group["description"][()].decode("utf-8"),
+                    "creation_date": order_group["creation_date"][()].decode("utf-8"),
+                    "status": order_group["status"][()].decode("utf-8"),
+                }
+
+                errors = validate_order_data(data)
+                if errors["errors"]:
+                    return jsonify(errors), 400
+
+                existing_order = Order.query.get(int(data["id"]))
+                if existing_order:
+                    existing_order.name = data["name"]
+                    existing_order.description = data["description"]
+                    existing_order.status = data["status"]
+                else:
+                    order = Order(
+                        name=data["name"],
+                        description=data["description"],
+                        creation_date=data["creation_date"],
+                        status=data["status"],
+                    )
+                    db.session.add(order)
+                    orders.append(order)
+
+            db.session.commit()
+
+            return (
+                jsonify(
+                    {"message": "Orders were imported successfully from HDF5 file."}
+                ),
+                200,
+            )
+    except Exception as e:
+        return jsonify({"error": f"Failed to import from HDF5: {str(e)}"}), 400

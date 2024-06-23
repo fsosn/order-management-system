@@ -31,6 +31,22 @@ def update_order(id):
     return response, status_code
 
 
+@orders_bp.route("/api/orders", methods=["PUT"])
+def bulk_update_statuses():
+    data = request.get_json()
+    if not data or "id_list" not in data or "status" not in data:
+        return (
+            jsonify({"error": "Properties 'id_list' and 'status' are required."}),
+            400,
+        )
+
+    id_list = data["id_list"]
+    status = data["status"]
+
+    response, status_code = order_service.bulk_update_statuses(id_list, status)
+    return response, status_code
+
+
 @orders_bp.route("/api/orders/<int:id>", methods=["DELETE"])
 def delete_order(id):
     response, status_code = order_service.delete_order(id)
@@ -88,3 +104,31 @@ def import_from_xml():
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "No XML data provided."}), 400
+
+
+@orders_bp.route("/api/orders/export/hdf5", methods=["GET"])
+def export_to_hdf5():
+    hdf5 = report_service.export_to_hdf5()
+    return send_file(
+        hdf5,
+        download_name="orders.h5",
+        as_attachment=True,
+        mimetype="application/x-hdf5",
+    )
+
+
+@orders_bp.route("/api/orders/import/hdf5", methods=["POST"])
+def import_from_hdf5():
+    if "file" in request.files:
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No selected file"}), 400
+        if not file.filename.endswith(".h5"):
+            return jsonify({"error": "Provided file is not HDF5."}), 400
+        try:
+            response, status_code = report_service.import_from_hdf5(file)
+            return response, status_code
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "No HDF5 file provided."}), 400

@@ -15,7 +15,7 @@ def validate_request_data(data):
     order_errors = validate_order_data(data)
     errors.update(order_errors)
 
-    return {"errors": errors}
+    return errors
 
 
 def validate_order_data(data):
@@ -30,10 +30,10 @@ def validate_order_data(data):
             errors["id"] = "ID must be an integer."
 
     if "name" in data and len(data["name"]) > 128:
-        errors["name"] = "Name must be 128 characters or less."
+        errors["name"] = "Name must be maximum 128 characters long."
 
     if "description" in data and len(data["description"]) > 256:
-        errors["description"] = "Description must be 256 characters or less."
+        errors["description"] = "Description must be maximum 256 characters long."
 
     if "creation_date" in data:
         try:
@@ -43,10 +43,12 @@ def validate_order_data(data):
                 "Invalid date format. Should be 'YYYY-MM-DD HH:MM:SS'."
             )
 
-    status_values = [status.value for status in Status]
-    if "status" in data and data["status"] not in status_values:
-        errors["status"] = (
-            f"Invalid status value. Choose one of: {', '.join(status_values)}"
-        )
+    if "status" in data:
+        try:
+            Status(data["status"])
+        except ValueError:
+            errors["status"] = (
+                f"Invalid status value. Choose one of: {', '.join([s.value for s in Status])}"
+            )
 
     return {"errors": errors}

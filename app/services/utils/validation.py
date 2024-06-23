@@ -1,4 +1,4 @@
-from ...model import Status
+from app.model import Status
 from datetime import datetime
 
 
@@ -13,9 +13,9 @@ def validate_request_data(data):
             errors[field] = f"Field '{field}' must be a non-empty string."
 
     order_errors = validate_order_data(data)
-    errors.update(order_errors)
+    errors.update(order_errors["errors"])
 
-    return errors
+    return {"errors": errors}
 
 
 def validate_order_data(data):
@@ -29,11 +29,17 @@ def validate_order_data(data):
         except ValueError:
             errors["id"] = "ID must be an integer."
 
-    if "name" in data and len(data["name"]) > 128:
-        errors["name"] = "Name must be maximum 128 characters long."
+    if "name" in data:
+        if not isinstance(data["name"], str):
+            errors["name"] = "Name must be a string."
+        elif len(data["name"]) > 128:
+            errors["name"] = "Name must be maximum 128 characters long."
 
-    if "description" in data and len(data["description"]) > 256:
-        errors["description"] = "Description must be maximum 256 characters long."
+    if "description" in data:
+        if not isinstance(data["description"], str):
+            errors["description"] = "Description must be a string."
+        elif len(data["description"]) > 256:
+            errors["description"] = "Description must be maximum 256 characters long."
 
     if "creation_date" in data:
         try:
@@ -44,11 +50,14 @@ def validate_order_data(data):
             )
 
     if "status" in data:
-        try:
-            Status(data["status"])
-        except ValueError:
-            errors["status"] = (
-                f"Invalid status value. Choose one of: {', '.join([s.value for s in Status])}"
-            )
+        if not isinstance(data["status"], str):
+            errors["status"] = "Status must be a string."
+        else:
+            try:
+                Status(data["status"])
+            except ValueError:
+                errors["status"] = (
+                    f"Invalid status value. Choose one of: {', '.join([s.value for s in Status])}"
+                )
 
     return {"errors": errors}

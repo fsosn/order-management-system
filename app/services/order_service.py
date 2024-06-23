@@ -1,7 +1,7 @@
 from flask import jsonify
-from ..model import Order, Status
-from ..extensions import db
-from .utils.validation import validate_request_data
+from app.model import Order, Status
+from app.extensions import db
+from .utils.validation import validate_request_data, validate_order_data
 import pandas as pd
 
 
@@ -13,7 +13,7 @@ def create_order(data):
     order = Order(
         name=data.get("name"),
         description=data.get("description"),
-        status=data.get("status", Status.NEW),
+        status=data.get("status", Status.NEW.value),
     )
     db.session.add(order)
     db.session.commit()
@@ -22,7 +22,11 @@ def create_order(data):
 
 
 def get_order(id):
-    order = Order.query.get_or_404(id)
+    order = db.session.get(Order, id)
+
+    if order is None:
+        return jsonify({"message": f"Order not found."}), 404
+
     return (
         jsonify(
             {
@@ -40,9 +44,6 @@ def get_order(id):
 def get_orders():
     orders = Order.query.all()
 
-    if not orders:
-        return jsonify({"message": "No orders found."}), 404
-
     orders_list = [
         {
             "id": str(order.id),
@@ -58,14 +59,20 @@ def get_orders():
 
 
 def update_order(id, data):
-    errors = validate_request_data(data)
+    errors = validate_order_data(data)
     if errors["errors"]:
         return jsonify(errors), 400
 
-    order = Order.query.get_or_404(id)
-    order.name = data.get("name", order.name)
-    order.description = data.get("description", order.description)
-    order.status = data.get("status", order.status)
+    order = db.session.get(Order, id)
+    if order is None:
+        return jsonify({"message": f"Order not found."}), 404
+
+    if "name" in data:
+        order.name = data.get("name", order.name)
+    if "description" in data:
+        order.description = data.get("description", order.description)
+    if "status" in data:
+        order.status = data.get("status", order.status)
     db.session.commit()
 
     return jsonify({"message": "Order updated successfully."}), 200
@@ -92,7 +99,7 @@ def bulk_update_statuses(id_list, status):
     no_change_orders = []
 
     for id in id_list:
-        order = Order.query.get(id)
+        order = db.session.get(Order, id)
         try:
             if order.status.value != status.value:
                 order.status = status
@@ -119,7 +126,10 @@ def bulk_update_statuses(id_list, status):
 
 
 def delete_order(id):
-    order = Order.query.get_or_404(id)
+    order = db.session.get(Order, id)
+    if order is None:
+        return jsonify({"message": f"Order not found."}), 404
+
     db.session.delete(order)
     db.session.commit()
 
@@ -128,9 +138,6 @@ def delete_order(id):
 
 def get_statistics():
     orders = Order.query.all()
-
-    if not orders:
-        return jsonify({"message": "No orders found."}), 404
 
     status_values = [status.value for status in Status]
 

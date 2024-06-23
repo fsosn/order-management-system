@@ -35,7 +35,7 @@ services:
       - FLASK_ENV=testing
       - FLASK_APP=run.py
       - DATABASE_URL=postgresql://postgres:postgres@db_test:5432/orders_test_db
-    command: ["sh", "-c", "pytest --cov=app tests/"]
+    command: ["sh", "-c", "python -m pytest --cov=app tests/"]
 
   db_test:
     image: postgres:latest

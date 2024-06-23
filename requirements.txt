@@ -6,3 +6,5 @@ pandas
 openpyxl
 h5py
 pytz
+pytest
+pytest-cov

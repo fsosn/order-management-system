@@ -1,5 +1,5 @@
-from .extensions import db
-from datetime import datetime
+from app.extensions import db
+from sqlalchemy.sql import func
 from enum import Enum
 
 
@@ -15,5 +15,5 @@ class Order(db.Model):
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     name = db.Column(db.String(128), nullable=False)
     description = db.Column(db.String(256), nullable=False)
-    creation_date = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    creation_date = db.Column(db.DateTime(timezone=True), default=func.now())
     status = db.Column(db.Enum(Status), default=Status.NEW, nullable=False)

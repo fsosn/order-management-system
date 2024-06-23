@@ -2,9 +2,9 @@ from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.styles.borders import Border, Side, BORDER_THIN
 from io import BytesIO
-from ..model import Order, Status
+from app.model import Order, Status
 import xml.etree.ElementTree as ET
-from ..extensions import db
+from app.extensions import db
 from flask import jsonify
 from .utils.validation import validate_order_data
 import h5py
@@ -30,7 +30,7 @@ def generate_xlsx_report():
 
     ws.append(["ID", "Name", "Description", "Creation Date", "Status"])
 
-    for cell in ws["1:1"]:
+    for cell in ws[1]:
         cell.font = Font(bold=True)
         cell.border = thin_border
 
@@ -137,7 +137,7 @@ def import_from_xml(xml):
             if errors["errors"]:
                 return jsonify(errors), 400
 
-            existing_order = Order.query.get(int(data["id"]))
+            existing_order = db.session.get(Order, int(data["id"]))
             if existing_order:
                 existing_order.name = data["name"]
                 existing_order.description = data["description"]
@@ -162,29 +162,25 @@ def import_from_xml(xml):
 def export_to_hdf5():
     orders = Order.query.all()
 
-    try:
-        hdf5 = BytesIO()
+    hdf5 = BytesIO()
 
-        with h5py.File(hdf5, "w") as file:
-            orders_group = file.create_group("orders")
+    with h5py.File(hdf5, "w") as file:
+        orders_group = file.create_group("orders")
 
-            for order in orders:
-                order_group = orders_group.create_group(f"order_{order.id}")
-                order_group.create_dataset("id", data=order.id)
-                order_group.create_dataset("name", data=order.name)
-                order_group.create_dataset("description", data=order.description)
-                order_group.create_dataset(
-                    "creation_date",
-                    data=order.creation_date.strftime("%Y-%m-%d %H:%M:%S"),
-                )
-                order_group.create_dataset("status", data=order.status.value)
+        for order in orders:
+            order_group = orders_group.create_group(f"order_{order.id}")
+            order_group.create_dataset("id", data=order.id)
+            order_group.create_dataset("name", data=order.name)
+            order_group.create_dataset("description", data=order.description)
+            order_group.create_dataset(
+                "creation_date",
+                data=order.creation_date.strftime("%Y-%m-%d %H:%M:%S"),
+            )
+            order_group.create_dataset("status", data=order.status.value)
 
-        hdf5.seek(0)
+    hdf5.seek(0)
 
-        return hdf5
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return hdf5
 
 
 def import_from_hdf5(hdf5):
@@ -211,7 +207,7 @@ def import_from_hdf5(hdf5):
                 if errors["errors"]:
                     return jsonify(errors), 400
 
-                existing_order = Order.query.get(int(data["id"]))
+                existing_order = db.session.get(Order, int(data["id"]))
                 if existing_order:
                     existing_order.name = data["name"]
                     existing_order.description = data["description"]

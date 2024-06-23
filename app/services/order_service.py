@@ -1,12 +1,12 @@
 from flask import jsonify
 from ..model import Order, Status
 from ..extensions import db
-from ..validation import validate_order
+from .utils.validation import validate_request_data
 import pandas as pd
 
 
 def create_order(data):
-    errors = validate_order(data)
+    errors = validate_request_data(data)
     if errors:
         return jsonify(errors), 400
 
@@ -58,7 +58,7 @@ def get_orders():
 
 
 def update_order(id, data):
-    errors = validate_order(data)
+    errors = validate_request_data(data)
     if errors:
         return jsonify(errors), 400
 

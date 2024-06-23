@@ -1,5 +1,6 @@
 from flask import Blueprint, request, send_file
 from .services import order_service, report_service
+from flask import jsonify
 
 orders_bp = Blueprint("orders", __name__)
 
@@ -51,3 +52,39 @@ def generate_xlsx_report():
         as_attachment=True,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@orders_bp.route("/api/orders/export/xml", methods=["GET"])
+def export_to_xml():
+    xml = report_service.export_to_xml()
+    return send_file(
+        xml, download_name="orders.xml", as_attachment=True, mimetype="application/xml"
+    )
+
+
+@orders_bp.route("/api/orders/import/xml", methods=["POST"])
+def import_from_xml():
+    if "file" in request.files:
+        file = request.files["file"]
+
+        if file.filename == "":
+            return jsonify({"error": "No selected file"}), 400
+
+        if not file.filename.endswith(".xml"):
+            return jsonify({"error": "Provided file is not XML."}), 400
+
+        try:
+            xml = file.read().decode("utf-8")
+            response, status_code = report_service.import_from_xml(xml)
+            return response, status_code
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    elif request.data:
+        try:
+            xml = request.data.decode("utf-8")
+            response, status_code = report_service.import_from_xml(xml)
+            return response, status_code
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "No XML data provided."}), 400

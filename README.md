@@ -66,9 +66,13 @@ Ensure you have Docker and Docker Compose installed on your local machine.
 
 ### Installation
 
-1. Make sure Docker is running.
-2. Navigate to project directory.
-3. Build Docker containers:
+1. Clone the repository
+   ```sh
+   git clone https://github.com/fsosn/order-management-system.git
+   ```   
+3. Make sure Docker is running.
+4. Navigate to project directory.
+5. Build Docker containers:
    ```sh
    docker-compose build
    ```

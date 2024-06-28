@@ -69,15 +69,15 @@ Ensure you have Docker and Docker Compose installed on your local machine.
 1. Clone the repository
    ```sh
    git clone https://github.com/fsosn/order-management-system.git
-   ```   
-3. Make sure Docker is running.
-4. Navigate to project directory.
-5. Build Docker containers:
+   ```
+2. Make sure Docker is running.
+3. Navigate to project directory.
+4. Build Docker containers:
    ```sh
    docker-compose build
    ```
 
-### Usage
+## Usage
 
 #### Running API
 
@@ -107,7 +107,7 @@ To run both the API and the tests:
 docker-compose up
 ```
 
-### Examples of using the API
+## Examples of using the API
 
 #### Create Order
 
@@ -194,6 +194,6 @@ curl -X GET http://localhost:5000/api/orders/export/hdf5 --output orders.h5
 curl -X POST http://localhost:5000/api/orders/import/hdf5 -F "file=@orders.h5"
 ```
 
-### Sample Files
+## Sample Files
 
 Sample files of generated XLSX report and orders exported to XML and HDF5 are located in `/sample_files` directory.

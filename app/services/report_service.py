@@ -79,16 +79,16 @@ def export_to_xml():
 
     for order in orders:
         sub_element = ET.SubElement(root, "Order")
-        id = ET.SubElement(sub_element, "ID")
-        id.text = str(order.id)
-        name = ET.SubElement(sub_element, "Name")
-        name.text = order.name
-        description = ET.SubElement(sub_element, "Description")
-        description.text = order.description
-        creation_date = ET.SubElement(sub_element, "CreationDate")
-        creation_date.text = order.creation_date.strftime("%Y-%m-%d %H:%M:%S")
-        status = ET.SubElement(sub_element, "Status")
-        status.text = order.status.value
+        id_element = ET.SubElement(sub_element, "ID")
+        id_element.text = str(order.id)
+        name_element = ET.SubElement(sub_element, "Name")
+        name_element.text = order.name
+        description_element = ET.SubElement(sub_element, "Description")
+        description_element.text = order.description
+        creation_date_element = ET.SubElement(sub_element, "CreationDate")
+        creation_date_element.text = order.creation_date.strftime("%Y-%m-%d %H:%M:%S")
+        status_element = ET.SubElement(sub_element, "Status")
+        status_element.text = order.status.value
 
     tree = ET.ElementTree(root)
     xml = BytesIO()
@@ -104,7 +104,6 @@ def import_from_xml(xml):
     except ET.ParseError:
         return jsonify({"error": "Invalid format."}), 400
 
-    orders = []
     for order_element in root.findall("Order"):
         try:
             id_element = order_element.find("ID")
@@ -137,20 +136,8 @@ def import_from_xml(xml):
             if errors["errors"]:
                 return jsonify(errors), 400
 
-            existing_order = db.session.get(Order, int(data["id"]))
-            if existing_order:
-                existing_order.name = data["name"]
-                existing_order.description = data["description"]
-                existing_order.status = data["status"]
-            else:
-                order = Order(
-                    name=data["name"],
-                    description=data["description"],
-                    creation_date=data["creation_date"],
-                    status=data["status"],
-                )
-                db.session.add(order)
-                orders.append(order)
+            __update_or_create_order(data)
+
         except Exception as e:
             return jsonify({"error": f"Invalid data: {e}"}), 400
 
@@ -165,18 +152,15 @@ def export_to_hdf5():
     hdf5 = BytesIO()
 
     with h5py.File(hdf5, "w") as file:
-        orders_group = file.create_group("orders")
-
         for order in orders:
-            order_group = orders_group.create_group(f"order_{order.id}")
-            order_group.create_dataset("id", data=order.id)
-            order_group.create_dataset("name", data=order.name)
-            order_group.create_dataset("description", data=order.description)
-            order_group.create_dataset(
-                "creation_date",
-                data=order.creation_date.strftime("%Y-%m-%d %H:%M:%S"),
+            order_group = file.create_group(f"order_{order.id}")
+            order_group.attrs["id"] = order.id
+            order_group.attrs["name"] = order.name
+            order_group.attrs["description"] = order.description
+            order_group.attrs["creation_date"] = order.creation_date.strftime(
+                "%Y-%m-%d %H:%M:%S"
             )
-            order_group.create_dataset("status", data=order.status.value)
+            order_group.attrs["status"] = order.status.value
 
     hdf5.seek(0)
 
@@ -186,41 +170,21 @@ def export_to_hdf5():
 def import_from_hdf5(hdf5):
     try:
         with h5py.File(hdf5, "r") as file:
-            if "orders" not in file:
-                return jsonify({"error": "Missing 'orders' group."}), 400
-
-            orders_group = file["orders"]
-            orders = []
-
-            for key in orders_group.keys():
-                order_group = orders_group[key]
-
+            for key in file.keys():
+                order_group = file[key]
                 data = {
-                    "id": key.split("_")[1],
-                    "name": order_group["name"][()].decode("utf-8"),
-                    "description": order_group["description"][()].decode("utf-8"),
-                    "creation_date": order_group["creation_date"][()].decode("utf-8"),
-                    "status": order_group["status"][()].decode("utf-8"),
+                    "id": order_group.attrs["id"],
+                    "name": order_group.attrs["name"],
+                    "description": order_group.attrs["description"],
+                    "creation_date": order_group.attrs["creation_date"],
+                    "status": order_group.attrs["status"],
                 }
 
                 errors = validate_order_data(data)
                 if errors["errors"]:
                     return jsonify(errors), 400
 
-                existing_order = db.session.get(Order, int(data["id"]))
-                if existing_order:
-                    existing_order.name = data["name"]
-                    existing_order.description = data["description"]
-                    existing_order.status = data["status"]
-                else:
-                    order = Order(
-                        name=data["name"],
-                        description=data["description"],
-                        creation_date=data["creation_date"],
-                        status=data["status"],
-                    )
-                    db.session.add(order)
-                    orders.append(order)
+                __update_or_create_order(data)
 
             db.session.commit()
 
@@ -232,3 +196,19 @@ def import_from_hdf5(hdf5):
             )
     except Exception as e:
         return jsonify({"error": f"Failed to import from HDF5: {str(e)}"}), 400
+
+
+def __update_or_create_order(data):
+    existing_order = db.session.get(Order, int(data["id"]))
+    if existing_order:
+        existing_order.name = data["name"]
+        existing_order.description = data["description"]
+        existing_order.status = data["status"]
+    else:
+        order = Order(
+            name=data["name"],
+            description=data["description"],
+            creation_date=data["creation_date"],
+            status=data["status"],
+        )
+        db.session.add(order)

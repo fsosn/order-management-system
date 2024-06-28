@@ -61,9 +61,9 @@ def get_statistics():
 
 @orders_bp.route("/api/orders/xlsx-report", methods=["GET"])
 def generate_xlsx_report():
-    xlxs_report = report_service.generate_xlsx_report()
+    xlsx_report = report_service.generate_xlsx_report()
     return send_file(
-        xlxs_report,
+        xlsx_report,
         download_name="orders_report.xlsx",
         as_attachment=True,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

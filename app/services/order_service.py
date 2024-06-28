@@ -79,7 +79,7 @@ def update_order(id, data):
 
 
 def bulk_update_statuses(id_list, status):
-    if not isinstance(id_list, list) or not all(isinstance(id, int) for id in id_list):
+    if not isinstance(id_list, list) or not all(isinstance(i, int) for i in id_list):
         return jsonify({"error": "Property 'id_list' must be a list of integers."}), 400
 
     try:
@@ -98,16 +98,16 @@ def bulk_update_statuses(id_list, status):
     not_found_orders = []
     no_change_orders = []
 
-    for id in id_list:
-        order = db.session.get(Order, id)
+    for i in id_list:
+        order = db.session.get(Order, i)
         try:
             if order.status.value != status.value:
                 order.status = status
-                updated_orders.append(id)
+                updated_orders.append(i)
             else:
-                no_change_orders.append(id)
+                no_change_orders.append(i)
         except Exception:
-            not_found_orders.append(id)
+            not_found_orders.append(i)
             continue
 
     db.session.commit()
